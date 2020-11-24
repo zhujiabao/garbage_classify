@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from tqdm import tqdm
-from utils.tools import CrossEntropyLoss_label_smooth
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 write = SummaryWriter("runs/log")
@@ -26,17 +25,17 @@ class garbageModel():
         else:
             self.model = mobilenetv3_small(num_classes=numclass)
 
+        self.model.cuda()
         self.numclass = numclass
 
         #多少分类任务
 
         self.optimizer = optim.SGD(self.model.parameters() , lr=lr, momentum=0.9)
         self.exp_lr_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer,
-                                                                               T_mult=5,
-                                                                               eta_min=0)
+                                                                               T_0=5)
         #print(self.model)
 
-    def train(self, trainLoder, epoch, criterion=CrossEntropyLoss_label_smooth):
+    def train(self, trainLoder, epoch, criterion):
         total = 0.
         running_loss = 0.
         correct = 0.
@@ -64,7 +63,7 @@ class garbageModel():
 
             total += label.size(0)
             running_loss += loss.data.item()
-            correct += (predicted, label).sum()
+            correct += (predicted==label).sum()
             write.add_scalar("Train loss", loss.data.item(), epoch*len(trainLoder) + i)
             #打印log
             if (i+1)%20 == 0:
@@ -75,7 +74,7 @@ class garbageModel():
 
         return correct/total, running_loss/total
 
-    def valid(self, valLoader, epoch, criterion=CrossEntropyLoss_label_smooth):
+    def valid(self, valLoader, epoch, criterion):
         torch.no_grad()
         self.model.eval()
         total = 0.
@@ -95,7 +94,7 @@ class garbageModel():
 
             total += label.size(0)
             running_loss += val_loss.data.item()
-            correct += (predicted, label).sum()
+            correct += (predicted==label).sum()
 
             write.add_scalar("Valid loss", val_loss.data.item(), epoch*len(valLoader) + i)
             if (i + 1) % 20 == 0:

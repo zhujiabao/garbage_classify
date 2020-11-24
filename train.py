@@ -4,6 +4,7 @@ from model import garbageModel
 from tqdm import tqdm
 import torch
 import torch.optim as optim
+from utils.tools import LabelSmoothingCrossEntropy
 from torch.utils.data import DataLoader
 from datafolder import garbageData, load_dataset
 from sklearn.model_selection import KFold
@@ -12,7 +13,7 @@ from sklearn.model_selection import KFold
 EPOCH = 10
 LR = 0.01
 BATCH_SIZE = 128
-ROOT_IMG = ''
+ROOT_IMG = './data/garbage_classify/train_data'
 K = 7
 PRETRAINED = True
 NUM_CLASS = 40
@@ -24,7 +25,7 @@ val_accurancy_global = 0.0
 dataset = garbageData(img_root=ROOT_IMG)
 #加载模型
 model = garbageModel(lr=LR, pretrained=PRETRAINED, numclass=NUM_CLASS)
-
+loss = LabelSmoothingCrossEntropy()
 
 #交叉验证
 KF = KFold(K, shuffle=True, random_state=5)
@@ -54,9 +55,9 @@ for train_index, val_index in KF.split(dataset):
     for epoch in range(EPOCH):
         curr_epoch = start_epoch + K*EPOCH + epoch + 1
         #训练
-        train_correct, train_running_loss = model.train(trainLoder=train_loader, epoch=curr_epoch)
+        train_correct, train_running_loss = model.train(trainLoder=train_loader, epoch=curr_epoch, criterion=loss)
         #验证
-        val_correct, val_running_loss = model.valid(valLoader=val_loader, epoch=curr_epoch,)
+        val_correct, val_running_loss = model.valid(valLoader=val_loader, epoch=curr_epoch, criterion=loss)
         #保存模型
         state = {'net': model.model.state_dict(), 'optimizer': model.optimizer.state_dict(), 'epoch': epoch}
 

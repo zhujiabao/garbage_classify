@@ -7,10 +7,10 @@ import torchvision.transforms as T
 
 random.seed(1)
 
-data_root = '/media/jiabao/D928233F6F20498B/Project/garbage_classify/garbage_classify_orgin/dataset/garbage_classify/train_data'
+#data_root = '/media/jiabao/D928233F6F20498B/Project/garbage_classify/garbage_classify_orgin/dataset/garbage_classify/train_data'
 
 class garbageData(Dataset):
-    def __init__(self, img_root=data_root,data_dir='train.txt'):
+    def __init__(self, img_root,data_dir='train.txt'):
 
         self.data_dir = data_dir
         self.img_root = img_root
@@ -18,7 +18,7 @@ class garbageData(Dataset):
 
     def __getitem__(self, item):
         path_img, label = self.data_info[item]
-        print(path_img, label)
+        #print(path_img, label)
         ##img = Image.open(path_img).convert('RGB')
 
         return path_img, label
@@ -70,7 +70,7 @@ class load_dataset(Dataset):
         self.transform = T.Compose([
             T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0),
             T.Resize((456, 456)),
-            T.RandomRotation([15, 30, 90, 180, 270]),
+            T.RandomRotation(degrees=20, resample=False, expand=False, center=None),
             T.ToTensor(),
             T.Normalize(mean=[0.544, 0.506, 0.460],
                         std=[0.207, 0.213, 0.220])
