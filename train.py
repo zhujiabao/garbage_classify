@@ -1,13 +1,15 @@
 import sys
 import os
-from model import garbageModel
+from model import base
 from tqdm import tqdm
+import torch.nn as nn
 import torch
 import torch.optim as optim
 from utils.tools import LabelSmoothingCrossEntropy
 from torch.utils.data import DataLoader
 from datafolder import garbageData, load_dataset
 from sklearn.model_selection import KFold
+from mobilenetv3 import mobilenetv3_large, mobilenetv3_small, h_swish
 
 
 EPOCH = 10
@@ -24,7 +26,30 @@ val_accurancy_global = 0.0
 #加载数据
 dataset = garbageData(img_root=ROOT_IMG)
 #加载模型
-model = garbageModel(lr=LR, pretrained=PRETRAINED, numclass=NUM_CLASS)
+if PRETRAINED:
+    model = mobilenetv3_small()
+    model.load_state_dict(torch.load('mobilenetv3-small-55df8e1f.pth'))
+
+    model.classifier = nn.Sequential(
+        nn.Linear(576, 1024),
+        h_swish(),
+        nn.Dropout(0.2),
+        nn.Linear(1024, NUM_CLASS),
+    )
+else:
+    model = mobilenetv3_small(num_classes=NUM_CLASS)
+
+if torch.cuda.is_available():
+    model.cuda()
+
+#
+base = base()
+# 多少分类任务
+
+optimizer = optim.SGD(model.parameters(), lr=LR, momentum=0.9)
+exp_lr_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
+                                                                       T_0=5)
+# print(self.model)
 loss = LabelSmoothingCrossEntropy()
 
 #交叉验证
@@ -55,11 +80,12 @@ for train_index, val_index in KF.split(dataset):
     for epoch in range(EPOCH):
         curr_epoch = start_epoch + K*EPOCH + epoch + 1
         #训练
-        train_correct, train_running_loss = model.train(trainLoder=train_loader, epoch=curr_epoch, criterion=loss)
+        train_correct, train_running_loss = base.train(model=model, trainLoder=train_loader, epoch=curr_epoch, criterion=loss, optimizer=optimizer,
+                                                        exp_lr_scheduler=exp_lr_scheduler)
         #验证
-        val_correct, val_running_loss = model.valid(valLoader=val_loader, epoch=curr_epoch, criterion=loss)
+        val_correct, val_running_loss = base.valid(model=model, valLoader=val_loader, epoch=curr_epoch, criterion=loss)
         #保存模型
-        state = {'net': model.model.state_dict(), 'optimizer': model.optimizer.state_dict(), 'epoch': epoch}
+        state = {'net': model.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': epoch}
 
         if train_correct > accurancy_global:
             torch.save(state, "./weights/best.pkl")

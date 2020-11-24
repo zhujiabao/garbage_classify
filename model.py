@@ -1,7 +1,5 @@
 #from efficientnet_pytorch import EfficientNet
-from mobilenetv3 import mobilenetv3_large, mobilenetv3_small, h_swish
 import torch
-import torch.nn as nn
 from torch.autograd import Variable
 from tqdm import tqdm
 import torch.optim as optim
@@ -9,38 +7,14 @@ from torch.utils.tensorboard import SummaryWriter
 write = SummaryWriter("runs/log")
 
 
-class garbageModel():
-    def __init__(self, lr, pretrained=True, numclass=40):
-        #是否加载预训练模型
-        if pretrained:
-            self.model = mobilenetv3_small()
-            self.model.load_state_dict(torch.load('mobilenetv3-small-55df8e1f.pth'))
+class base():
 
-            self.model.classifier = nn.Sequential(
-                                        nn.Linear(576, 1024),
-                                        h_swish(),
-                                        nn.Dropout(0.2),
-                                        nn.Linear(1024, numclass),
-        )
-        else:
-            self.model = mobilenetv3_small(num_classes=numclass)
-
-        self.model.cuda()
-        self.numclass = numclass
-
-        #多少分类任务
-
-        self.optimizer = optim.SGD(self.model.parameters() , lr=lr, momentum=0.9)
-        self.exp_lr_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer,
-                                                                               T_0=5)
-        #print(self.model)
-
-    def train(self, trainLoder, epoch, criterion):
+    def train(self, model, trainLoder, epoch, criterion,optimizer,exp_lr_scheduler):
         total = 0.
         running_loss = 0.
         correct = 0.
 
-        self.model.train()
+        model.train()
 
         for i, data in enumerate(tqdm(trainLoder)):
             img, label = data
@@ -48,16 +22,16 @@ class garbageModel():
                 img = Variable(img).cuda()
                 label = Variable(label).cuda()
 
-            self.optimizer.zero_grad()
+            optimizer.zero_grad()
 
-            result = self.model(img)
+            result = model(img)
 
             loss = criterion(result, label)
 
             #back
             loss.backward()
-            self.optimizer.step()
-            self.exp_lr_scheduler.step()
+            optimizer.step()
+            exp_lr_scheduler.step()
 
             _, predicted = torch.max(result.data, 1)
 
@@ -74,9 +48,9 @@ class garbageModel():
 
         return correct/total, running_loss/total
 
-    def valid(self, valLoader, epoch, criterion):
+    def valid(self, model, valLoader, epoch, criterion):
         torch.no_grad()
-        self.model.eval()
+        model.eval()
         total = 0.
         running_loss = 0.
         correct = 0.
@@ -87,7 +61,7 @@ class garbageModel():
                 img = Variable(img).cuda()
                 label = Variable(label).cuda()
 
-            result = self.model(img)
+            result = model(img)
             val_loss = criterion(result, label)
 
             _, predicted = torch.max(result.data, 1)
@@ -108,12 +82,12 @@ class garbageModel():
 
 
 if __name__ == '__main__':
-    model = garbageModel(pretrained=True, optimizer=False, exp_lr_scheduler=False)
+    model = base()
     #from torchsummary import summary
     #summary(model.model, (3, 456,456), device='cpu')
     import time
 
     time1 = time.time()
-    tet = torch.Tensor(1, 3, 456, 456)
+    tet = torch.Tensor(1, 3, 333, 333).cuda()
     print(model.model(tet))
     print(time.time() - time1)
