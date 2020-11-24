@@ -78,7 +78,7 @@ for train_index, val_index in KF.split(dataset):
 
     #
     for epoch in range(EPOCH):
-        curr_epoch = start_epoch + K*EPOCH + epoch + 1
+        curr_epoch = start_epoch + k*EPOCH + epoch + 1
         #训练
         train_correct, train_running_loss = base.train(model=model, trainLoder=train_loader, epoch=curr_epoch, criterion=loss, optimizer=optimizer,
                                                         exp_lr_scheduler=exp_lr_scheduler)
@@ -86,8 +86,9 @@ for train_index, val_index in KF.split(dataset):
         val_correct, val_running_loss = base.valid(model=model, valLoader=val_loader, epoch=curr_epoch, criterion=loss)
         #保存模型
         state = {'net': model.state_dict(), 'optimizer': optimizer.state_dict(), 'epoch': epoch}
-
+        k += 1
         if train_correct > accurancy_global:
             torch.save(state, "./weights/best.pkl")
             print("准确率由：", accurancy_global, "上升至：", train_correct, "已更新并保存权值为weights/best.pkl")
             accurancy_global = train_correct
+torch.save(model, "./weights/final.pth")
